@@ -1,6 +1,0 @@
-python-telegram-bot==21.6
-requests
-pandas
-numpy
-ta
-python-dotenv
