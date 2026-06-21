@@ -19,3 +19,17 @@ def calculate_rsi(closes):
     rsi = 100 - (100 / (1 + rs))
 
     return round(rsi, 2)
+
+def ema_direction(closes):
+    if len(closes) < 21:
+        return "NEUTRE"
+
+    ema9 = sum(closes[-9:]) / 9
+    ema21 = sum(closes[-21:]) / 21
+
+    if ema9 > ema21:
+        return "HAUSSIER"
+    elif ema9 < ema21:
+        return "BAISSIER"
+    else:
+        return "NEUTRE"
