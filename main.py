@@ -35,32 +35,32 @@ Choisissez une option :
 
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    # Actif par défaut (on simplifie pour le test)
     symbol = "AAPL"
 
     data = get_quote(symbol)
 
-    if not data:
-        await update.message.reply_text("Erreur : données indisponibles.")
+    if data is None:
+        await update.message.reply_text(
+            "Erreur : impossible de récupérer les données du marché."
+        )
         return
 
     message = f"""
 ====================================
-ANALYSE MARCHE - PredictHood
+ANALYSE MARCHÉ - PREDICTHOOD
 
 ACTIF : {symbol}
 
 Prix actuel : {data['current']}
 Haut : {data['high']}
 Bas : {data['low']}
-Open : {data['open']}
+Ouverture : {data['open']}
 Clôture précédente : {data['previous_close']}
 
 ====================================
 """
 
     await update.message.reply_text(message)
-
 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
