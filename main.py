@@ -4,7 +4,21 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
 
+BINARY_ASSETS = [
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY",
+    "AUDUSD",
+    "USDCAD"
+]
 
+CLASSIC_ASSETS = [
+    "XAUUSD",
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY",
+    "NASDAQ"
+]
 MENU = [
     ["Option Binaire"],
     ["Trading Classique"],
