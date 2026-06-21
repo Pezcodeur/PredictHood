@@ -13,12 +13,17 @@ from analysis.scoring import basic_score
 from analysis.trend import detect_trend
 from analysis.filters import signal_quality
 
+# =======================
+# NOUVEAU V2 IMPORTS
+# =======================
+from analysis.indicators import calculate_rsi, ema_direction
+from analysis.confluence import confluence_score
+
 
 # =======================
 # ACTIFS
 # =======================
 BINARY_ASSETS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"]
-
 CLASSIC_ASSETS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NASDAQ"]
 
 
@@ -97,7 +102,7 @@ async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =======================
-# ANALYSE
+# 🧠 ANALYSE V2 (UPGRADE)
 # =======================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -108,29 +113,51 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Données indisponibles.")
         return
 
-    score = basic_score(data)
-    trend = detect_trend(data)
-    quality = signal_quality(score, trend)
+    current = data.get("current", 100)
 
-    if quality == "FORTE" and trend == "HAUSSIER":
-        decision = "CALL"
-    elif quality == "FORTE" and trend == "BAISSIER":
-        decision = "PUT"
+    # mini simulation candles (remplacera Finnhub plus tard)
+    closes = [
+        current - 2,
+        current - 1,
+        current,
+        current + 1,
+        current + 2,
+        current + 1,
+        current
+    ]
+
+    # =====================
+    # INDICATEURS V2
+    # =====================
+    rsi = calculate_rsi(closes)
+    ema = ema_direction(closes)
+
+    trend = detect_trend(data)
+    score = confluence_score(trend, rsi, ema)
+
+    # =====================
+    # DÉCISION INTELLIGENTE
+    # =====================
+    if score >= 70:
+        decision = "CALL" if trend == "HAUSSIER" else "PUT"
+    elif score <= 40:
+        decision = "ATTENTE (FAIBLE PROBABILITÉ)"
     else:
         decision = "ATTENTE"
 
-    await update.message.reply_text(
-        f"""
-ANALYSE PREDICTHOOD
+    await update.message.reply_text(f"""
+ANALYSE PREDICTHOOD V2
 
 ACTIF : {symbol}
-Trend : {trend}
-Score : {score}
-Qualité : {quality}
 
-Signal : {decision}
-"""
-    )
+Tendance : {trend}
+RSI : {rsi}
+EMA : {ema}
+
+Score Confluence : {score}/100
+
+DÉCISION : {decision}
+""")
 
 
 # =======================
@@ -155,8 +182,7 @@ async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         decision = "ATTENTE"
 
-    await update.message.reply_text(
-        f"""
+    await update.message.reply_text(f"""
 OPTION BINAIRE
 
 ACTIF : {symbol}
@@ -164,8 +190,7 @@ Trend : {trend}
 Score : {score}
 
 Signal : {decision}
-"""
-    )
+""")
 
 
 # =======================
@@ -190,8 +215,7 @@ async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         decision = "ATTENTE"
 
-    await update.message.reply_text(
-        f"""
+    await update.message.reply_text(f"""
 TRADING CLASSIQUE
 
 ACTIF : {symbol}
@@ -199,12 +223,11 @@ Trend : {trend}
 Score : {score}
 
 Signal : {decision}
-"""
-    )
+""")
 
 
 # =======================
-# ROUTEUR MENU (UX PRO)
+# ROUTEUR MENU
 # =======================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
