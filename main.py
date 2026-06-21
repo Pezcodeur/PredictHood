@@ -1,8 +1,10 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
-from analysis.scoring import basic_score
+
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
+
+from analysis.scoring import basic_score
 from analysis.trend import detect_trend
 from analysis.filters import signal_quality
 
@@ -26,6 +28,7 @@ CLASSIC_ASSETS = [
     "NASDAQ"
 ]
 
+
 # =======================
 # MENU
 # =======================
@@ -35,6 +38,215 @@ MENU = [
     ["📡 Scanner Actifs"],
     ["⚙️ Paramètres", "ℹ️ Aide"]
 ]
+
+
+# =======================
+# START
+# =======================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True, one_time_keyboard=False)
+
+    message = f"""
+{APP_NAME}
+Version : {VERSION}
+
+Système : PredictHood Trading Engine
+
+Statut : EN LIGNE
+
+Choisis un module :
+- Analyse marché
+- Option Binaire
+- Trading Classique
+- Scanner actifs
+"""
+
+    await update.message.reply_text(message, reply_markup=keyboard)
+
+
+# =======================
+# PRICE (TEST)
+# =======================
+async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    symbol = "AAPL"
+
+    data = get_quote(symbol)
+
+    if not data:
+        await update.message.reply_text("Erreur : données indisponibles.")
+        return
+
+    message = f"""
+ANALYSE MARCHÉ
+
+ACTIF : {symbol}
+
+Prix : {data['current']}
+Haut : {data['high']}
+Bas : {data['low']}
+Open : {data['open']}
+Close : {data['previous_close']}
+"""
+
+    await update.message.reply_text(message)
+
+
+# =======================
+# SCANNER
+# =======================
+async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    message = "SCANNER PREDICTHOOD\n\nOPTION BINAIRE\n"
+
+    for asset in BINARY_ASSETS:
+        message += f"- {asset}\n"
+
+    message += "\nTRADING CLASSIQUE\n"
+
+    for asset in CLASSIC_ASSETS:
+        message += f"- {asset}\n"
+
+    await update.message.reply_text(message)
+
+
+# =======================
+# ANALYSE (BASE)
+# =======================
+async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    symbol = "AAPL"
+
+    data = get_quote(symbol)
+
+    if not data:
+        await update.message.reply_text("Données indisponibles.")
+        return
+
+    score = basic_score(data)
+    trend = detect_trend(data)
+    quality = signal_quality(score, trend)
+
+    if quality == "FORTE" and trend == "HAUSSIER":
+        decision = "CALL"
+    elif quality == "FORTE" and trend == "BAISSIER":
+        decision = "PUT"
+    else:
+        decision = "ATTENTE"
+
+    message = f"""
+ANALYSE PREDICTHOOD
+
+ACTIF : {symbol}
+
+Tendance : {trend}
+Score : {score}/100
+Qualité : {quality}
+
+Décision : {decision}
+"""
+
+    await update.message.reply_text(message)
+
+
+# =======================
+# OPTION BINAIRE
+# =======================
+async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    symbol = "EURUSD"
+
+    data = get_quote(symbol)
+
+    if not data:
+        await update.message.reply_text("Données indisponibles.")
+        return
+
+    score = basic_score(data)
+    trend = detect_trend(data)
+    quality = signal_quality(score, trend)
+
+    if quality == "FORTE" and score >= 65:
+        decision = "CALL (EXPIRATION COURTE)"
+    elif quality == "FORTE" and score <= 35:
+        decision = "PUT (EXPIRATION COURTE)"
+    else:
+        decision = "ATTENTE"
+
+    message = f"""
+OPTION BINAIRE - PREDICTHOOD
+
+ACTIF : {symbol}
+
+Tendance : {trend}
+Score : {score}/100
+Qualité : {quality}
+
+SIGNAL : {decision}
+"""
+
+    await update.message.reply_text(message)
+
+
+# =======================
+# CLASSIQUE
+# =======================
+async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    symbol = "XAUUSD"
+
+    data = get_quote(symbol)
+
+    if not data:
+        await update.message.reply_text("Données indisponibles.")
+        return
+
+    score = basic_score(data)
+    trend = detect_trend(data)
+    quality = signal_quality(score, trend)
+
+    if quality == "FORTE" and trend == "HAUSSIER":
+        decision = "BUY"
+    elif quality == "FORTE" and trend == "BAISSIER":
+        decision = "SELL"
+    else:
+        decision = "ATTENTE"
+
+    message = f"""
+TRADING CLASSIQUE - PREDICTHOOD
+
+ACTIF : {symbol}
+
+Tendance : {trend}
+Score : {score}/100
+Qualité : {quality}
+
+SIGNAL : {decision}
+"""
+
+    await update.message.reply_text(message)
+
+
+# =======================
+# MAIN
+# =======================
+def main():
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("price", price))
+    app.add_handler(CommandHandler("scanner", scanner))
+    app.add_handler(CommandHandler("analyse", analyse))
+    app.add_handler(CommandHandler("binary", binary_analysis))
+    app.add_handler(CommandHandler("classic", classic_analysis))
+
+    print("PredictHood running...")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()]
 
 
 # =======================
