@@ -113,16 +113,17 @@ async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =======================
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
-
+    app.add_handler(CommandHandler("binary", binary_analysis))
+    app.add_handler(CommandHandler("classic", classic_analysis))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("price", price))
     app.add_handler(CommandHandler("scanner", scanner))
     app.add_handler(CommandHandler("analyse", analyse))
     print("PredictHood running...")
     app.run_polling()
-async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    symbol = "AAPL"
+    symbol = "EURUSD"
 
     data = get_quote(symbol)
 
@@ -134,21 +135,15 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trend = detect_trend(data)
     quality = signal_quality(score, trend)
 
-    # logique finale améliorée
-    if quality == "FORTE":
-        if trend == "HAUSSIER":
-            decision = "CALL"
-        else:
-            decision = "PUT"
-
-    elif quality == "CONFLIT":
-        decision = "ATTENTE (CONFLIT DE SIGNAL)"
-
+    if quality == "FORTE" and score >= 65:
+        decision = "CALL (EXPIRATION COURTE)"
+    elif quality == "FORTE" and score <= 35:
+        decision = "PUT (EXPIRATION COURTE)"
     else:
         decision = "ATTENTE"
 
     message = f"""
-ANALYSE PREDICTHOOD
+OPTION BINAIRE - PREDICTHOOD
 
 ACTIF : {symbol}
 
@@ -156,14 +151,52 @@ Tendance : {trend}
 Score : {score}/100
 Qualité : {quality}
 
-Décision : {decision}
+SIGNAL : {decision}
 
-Résumé :
-- Filtre anti faux signaux activé
-- Analyse multi-facteurs
+Note :
+- Analyse court terme
+- Focus volatilité
 """
 
     await update.message.reply_text(message)
 
+async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    symbol = "XAUUSD"
+
+    data = get_quote(symbol)
+
+    if not data:
+        await update.message.reply_text("Données indisponibles.")
+        return
+
+    score = basic_score(data)
+    trend = detect_trend(data)
+    quality = signal_quality(score, trend)
+
+    if quality == "FORTE" and trend == "HAUSSIER":
+        decision = "BUY"
+    elif quality == "FORTE" and trend == "BAISSIER":
+        decision = "SELL"
+    else:
+        decision = "ATTENTE"
+
+    message = f"""
+TRADING CLASSIQUE - PREDICTHOOD
+
+ACTIF : {symbol}
+
+Tendance : {trend}
+Score : {score}/100
+Qualité : {quality}
+
+SIGNAL : {decision}
+
+Note :
+- Analyse tendance forte
+- Priorité XAUUSD
+"""
+
+    await update.message.reply_text(message)
 if __name__ == "__main__":
     main()
