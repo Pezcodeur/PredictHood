@@ -13,12 +13,6 @@ from analysis.scoring import basic_score
 from analysis.trend import detect_trend
 from analysis.filters import signal_quality
 
-# =======================
-# NOUVEAU V2 IMPORTS
-# =======================
-from analysis.indicators import calculate_rsi, ema_direction
-from analysis.confluence import confluence_score
-
 
 # =======================
 # ACTIFS
@@ -45,7 +39,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True)
 
-    message = f"""
+    await update.message.reply_text(
+        f"""
 {APP_NAME}
 Version : {VERSION}
 
@@ -53,14 +48,10 @@ PredictHood Trading Engine
 
 Statut : EN LIGNE
 
-Choisis un module :
-- Analyse Marché
-- Option Binaire
-- Trading Classique
-- Scanner Actifs
-"""
-
-    await update.message.reply_text(message, reply_markup=keyboard)
+Choisis une option :
+""",
+        reply_markup=keyboard
+    )
 
 
 # =======================
@@ -75,7 +66,8 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Données indisponibles.")
         return
 
-    message = f"""
+    await update.message.reply_text(
+        f"""
 MARCHÉ
 
 ACTIF : {symbol}
@@ -83,8 +75,7 @@ Prix : {data['current']}
 Haut : {data['high']}
 Bas : {data['low']}
 """
-
-    await update.message.reply_text(message)
+    )
 
 
 # =======================
@@ -92,17 +83,14 @@ Bas : {data['low']}
 # =======================
 async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    msg = "OPTION BINAIRE:\n"
-    msg += "\n".join(BINARY_ASSETS)
-
-    msg += "\n\nTRADING CLASSIQUE:\n"
-    msg += "\n".join(CLASSIC_ASSETS)
+    msg = "OPTION BINAIRE:\n" + "\n".join(BINARY_ASSETS)
+    msg += "\n\nTRADING CLASSIQUE:\n" + "\n".join(CLASSIC_ASSETS)
 
     await update.message.reply_text(msg)
 
 
 # =======================
-# 🧠 ANALYSE V2 (UPGRADE)
+# ANALYSE (SAFE VERSION V2)
 # =======================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -115,49 +103,40 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     current = data.get("current", 100)
 
-    # mini simulation candles (remplacera Finnhub plus tard)
-    closes = [
-        current - 2,
-        current - 1,
-        current,
-        current + 1,
-        current + 2,
-        current + 1,
-        current
-    ]
-
-    # =====================
-    # INDICATEURS V2
-    # =====================
-    rsi = calculate_rsi(closes)
-    ema = ema_direction(closes)
-
+    # mini logique stable (sans indicators externes)
+    score = basic_score(data)
     trend = detect_trend(data)
-    score = confluence_score(trend, rsi, ema)
+    quality = signal_quality(score, trend)
 
-    # =====================
-    # DÉCISION INTELLIGENTE
-    # =====================
-    if score >= 70:
-        decision = "CALL" if trend == "HAUSSIER" else "PUT"
-    elif score <= 40:
-        decision = "ATTENTE (FAIBLE PROBABILITÉ)"
+    # simulation RSI simple (SAFE)
+    rsi = 50
+    if current > data.get("open", current):
+        rsi = 60
+    else:
+        rsi = 40
+
+    # décision améliorée
+    if quality == "FORTE" and trend == "HAUSSIER":
+        decision = "CALL"
+    elif quality == "FORTE" and trend == "BAISSIER":
+        decision = "PUT"
     else:
         decision = "ATTENTE"
 
-    await update.message.reply_text(f"""
-ANALYSE PREDICTHOOD V2
+    await update.message.reply_text(
+        f"""
+ANALYSE PREDICTHOOD
 
 ACTIF : {symbol}
 
 Tendance : {trend}
-RSI : {rsi}
-EMA : {ema}
-
-Score Confluence : {score}/100
+Score : {score}
+RSI (estimé) : {rsi}
+Qualité : {quality}
 
 DÉCISION : {decision}
-""")
+"""
+    )
 
 
 # =======================
@@ -182,7 +161,8 @@ async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         decision = "ATTENTE"
 
-    await update.message.reply_text(f"""
+    await update.message.reply_text(
+        f"""
 OPTION BINAIRE
 
 ACTIF : {symbol}
@@ -190,11 +170,12 @@ Trend : {trend}
 Score : {score}
 
 Signal : {decision}
-""")
+"""
+    )
 
 
 # =======================
-# TRADING CLASSIQUE
+# CLASSIQUE
 # =======================
 async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -215,7 +196,8 @@ async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         decision = "ATTENTE"
 
-    await update.message.reply_text(f"""
+    await update.message.reply_text(
+        f"""
 TRADING CLASSIQUE
 
 ACTIF : {symbol}
@@ -223,11 +205,12 @@ Trend : {trend}
 Score : {score}
 
 Signal : {decision}
-""")
+"""
+    )
 
 
 # =======================
-# ROUTEUR MENU
+# MENU ROUTER
 # =======================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
