@@ -1,6 +1,6 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
-
+from analysis.scoring import basic_score
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
 
