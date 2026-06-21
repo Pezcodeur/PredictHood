@@ -132,12 +132,18 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     score = basic_score(data)
     trend = detect_trend(data)
+    quality = signal_quality(score, trend)
 
-    # logique améliorée
-    if trend == "HAUSSIER" and score >= 60:
-        decision = "CALL"
-    elif trend == "BAISSIER" and score <= 40:
-        decision = "PUT"
+    # logique finale améliorée
+    if quality == "FORTE":
+        if trend == "HAUSSIER":
+            decision = "CALL"
+        else:
+            decision = "PUT"
+
+    elif quality == "CONFLIT":
+        decision = "ATTENTE (CONFLIT DE SIGNAL)"
+
     else:
         decision = "ATTENTE"
 
@@ -148,12 +154,13 @@ ACTIF : {symbol}
 
 Tendance : {trend}
 Score : {score}/100
+Qualité : {quality}
 
 Décision : {decision}
 
 Résumé :
-- Analyse tendance + volatilité
-- Filtrage intelligent des signaux
+- Filtre anti faux signaux activé
+- Analyse multi-facteurs
 """
 
     await update.message.reply_text(message)
