@@ -4,13 +4,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters
-)
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
@@ -20,37 +14,37 @@ from analysis.trend import detect_trend
 from analysis.filters import signal_quality
 
 
-# =======================
-# SAFE FUNCTION
-# =======================
-def safe_get(data, key, default=0):
+# =========================
+# SAFE TOOL
+# =========================
+def safe(data, key, default=0):
     try:
         return data.get(key, default)
     except:
         return default
 
 
-# =======================
-# ACTIFS
-# =======================
+# =========================
+# ACTIFS STRATÉGIQUES
+# =========================
 BINARY_ASSETS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"]
-CLASSIC_ASSETS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NASDAQ"]
+CLASSIC_ASSETS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100"]
 
 
-# =======================
-# MENU
-# =======================
+# =========================
+# MENU PRO
+# =========================
 MENU = [
     ["📊 Analyse Marché"],
     ["⚡ Option Binaire", "📈 Trading Classique"],
     ["📡 Scanner Actifs"],
-    ["⚙️ Paramètres", "ℹ️ Aide"]
+    ["ℹ️ Aide"]
 ]
 
 
-# =======================
+# =========================
 # START
-# =======================
+# =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True)
@@ -60,19 +54,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {APP_NAME}
 Version : {VERSION}
 
-PredictHood Engine
+PREDICTHOOD TRADING ENGINE V3
 
 Statut : EN LIGNE
 
-Choisis une option :
+Modules :
+- Analyse marché
+- Option binaire
+- Trading classique
+- Scanner intelligent
 """,
         reply_markup=keyboard
     )
 
 
-# =======================
-# PRICE
-# =======================
+# =========================
+# PRICE TEST
+# =========================
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "AAPL"
@@ -83,29 +81,32 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(f"""
-MARCHÉ
+MARCHÉ LIVE
 
-ACTIF : {symbol}
-Prix : {safe_get(data,'current')}
-Haut : {safe_get(data,'high')}
-Bas : {safe_get(data,'low')}
+Actif : {symbol}
+Prix : {safe(data,'current')}
+Haut : {safe(data,'high')}
+Bas : {safe(data,'low')}
 """)
 
 
-# =======================
-# SCANNER
-# =======================
+# =========================
+# SCANNER INTELLIGENT
+# =========================
 async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    msg = "OPTION BINAIRE:\n" + "\n".join(BINARY_ASSETS)
-    msg += "\n\nTRADING CLASSIQUE:\n" + "\n".join(CLASSIC_ASSETS)
+    msg = "OPTION BINAIRE ACTIFS:\n"
+    msg += "\n".join(BINARY_ASSETS)
+
+    msg += "\n\nTRADING CLASSIQUE:\n"
+    msg += "\n".join(CLASSIC_ASSETS)
 
     await update.message.reply_text(msg)
 
 
-# =======================
-# ANALYSE
-# =======================
+# =========================
+# ANALYSE PRINCIPALE (CORE ENGINE)
+# =========================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "AAPL"
@@ -115,37 +116,40 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Données indisponibles.")
         return
 
-    current = safe_get(data, "current", 100)
-    open_p = safe_get(data, "open", current)
+    current = safe(data, "current", 100)
+    open_price = safe(data, "open", current)
 
     score = basic_score(data)
     trend = detect_trend(data)
     quality = signal_quality(score, trend)
 
-    rsi = 50 if current > open_p else 40
+    # logique simple mais robuste
+    momentum = "BUY_PRESSURE" if current > open_price else "SELL_PRESSURE"
 
     decision = "ATTENTE"
+
     if quality == "FORTE" and trend == "HAUSSIER":
         decision = "CALL"
     elif quality == "FORTE" and trend == "BAISSIER":
         decision = "PUT"
 
     await update.message.reply_text(f"""
-ANALYSE PREDICTHOOD
+PREDICTHOOD ANALYSE V3
 
-ACTIF : {symbol}
+Actif : {symbol}
+
 Trend : {trend}
+Momentum : {momentum}
 Score : {score}
-RSI : {rsi}
 Qualité : {quality}
 
-DÉCISION : {decision}
+SIGNAL : {decision}
 """)
 
 
-# =======================
-# OPTION BINAIRE
-# =======================
+# =========================
+# OPTION BINAIRE ENGINE
+# =========================
 async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "EURUSD"
@@ -157,28 +161,30 @@ async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     score = basic_score(data)
     trend = detect_trend(data)
+    quality = signal_quality(score, trend)
 
     decision = "ATTENTE"
 
-    if score >= 65 and trend == "HAUSSIER":
-        decision = "CALL"
-    elif score <= 35 and trend == "BAISSIER":
-        decision = "PUT"
+    if score >= 70 and trend == "HAUSSIER":
+        decision = "CALL (EXP 1-3min)"
+    elif score <= 30 and trend == "BAISSIER":
+        decision = "PUT (EXP 1-3min)"
 
     await update.message.reply_text(f"""
-OPTION BINAIRE
+OPTION BINAIRE V3
 
-ACTIF : {symbol}
+Actif : {symbol}
 Trend : {trend}
 Score : {score}
+Qualité : {quality}
 
-Signal : {decision}
+SIGNAL : {decision}
 """)
 
 
-# =======================
-# CLASSIQUE
-# =======================
+# =========================
+# TRADING CLASSIQUE ENGINE
+# =========================
 async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "XAUUSD"
@@ -193,25 +199,25 @@ async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     decision = "ATTENTE"
 
-    if score >= 60 and trend == "HAUSSIER":
+    if score >= 65 and trend == "HAUSSIER":
         decision = "BUY"
-    elif score <= 40 and trend == "BAISSIER":
+    elif score <= 35 and trend == "BAISSIER":
         decision = "SELL"
 
     await update.message.reply_text(f"""
-TRADING CLASSIQUE
+TRADING CLASSIQUE V3
 
-ACTIF : {symbol}
+Actif : {symbol}
 Trend : {trend}
 Score : {score}
 
-Signal : {decision}
+SIGNAL : {decision}
 """)
 
 
-# =======================
-# ROUTER
-# =======================
+# =========================
+# ROUTEUR MENU
+# =========================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
@@ -232,10 +238,11 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Option non reconnue.")
 
 
-# =======================
-# MAIN FIXED
-# =======================
+# =========================
+# MAIN STABLE RAILWAY
+# =========================
 def main():
+
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -243,7 +250,7 @@ def main():
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
 
-    print("PredictHood running...")
+    print("PredictHood V3 RUNNING...")
 
     app.run_polling(drop_pending_updates=True)
 
