@@ -54,12 +54,14 @@ Choisis un module :
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("price", price))
 
+    app.add_handler(CommandHandler("scanner", scanner))
+
     print("PredictHood running...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
