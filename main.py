@@ -1,6 +1,5 @@
 import sys
 import os
-import math
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -9,10 +8,6 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
-
-from analysis.scoring import basic_score
-from analysis.trend import detect_trend
-from analysis.filters import signal_quality
 
 
 # =========================
@@ -26,19 +21,69 @@ def safe(data, key, default=0):
 
 
 # =========================
+# EMA
+# =========================
+def ema(values, period=10):
+    if not values:
+        return 0
+
+    k = 2 / (period + 1)
+    e = values[0]
+
+    for v in values:
+        e = v * k + e * (1 - k)
+
+    return e
+
+
+# =========================
+# RSI SIMPLE
+# =========================
+def rsi(values):
+    if len(values) < 2:
+        return 50
+
+    gains = 0
+    losses = 0
+
+    for i in range(1, len(values)):
+        diff = values[i] - values[i - 1]
+        if diff > 0:
+            gains += diff
+        else:
+            losses += abs(diff)
+
+    if losses == 0:
+        return 100
+
+    rs = gains / losses
+    return 100 - (100 / (1 + rs))
+
+
+# =========================
+# ATR SIMPLE
+# =========================
+def atr(high, low):
+    if not high or not low:
+        return 0
+
+    return sum([h - l for h, l in zip(high, low)]) / len(high)
+
+
+# =========================
 # ACTIFS
 # =========================
-BINARY_ASSETS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"]
-CLASSIC_ASSETS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100"]
+BINARY = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"]
+CLASSIC = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100"]
 
 
 # =========================
-# MENU PRO
+# MENU
 # =========================
 MENU = [
     ["📊 Analyse Marché"],
     ["⚡ Option Binaire", "📈 Trading Classique"],
-    ["📡 Scanner Actifs"]
+    ["📡 Scanner"]
 ]
 
 
@@ -54,71 +99,42 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {APP_NAME}
 Version : {VERSION}
 
-PREDICTHOOD ENGINE V5
+PREDICTHOOD V6 ENGINE
 
 Statut : ONLINE
-
-Choisis un mode :
 """,
         reply_markup=keyboard
     )
 
 
 # =========================
-# PRICE TEST
+# ENGINE SCORE
 # =========================
-async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    symbol = "AAPL"
-    data = get_quote(symbol)
-
-    if not data:
-        await update.message.reply_text("Erreur données.")
-        return
-
-    await update.message.reply_text(f"""
-MARCHÉ
-
-Actif : {symbol}
-Prix : {safe(data,'current')}
-Haut : {safe(data,'high')}
-Bas : {safe(data,'low')}
-""")
-
-
-# =========================
-# SCANNER
-# =========================
-async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    msg = "OPTION BINAIRE:\n" + "\n".join(BINARY_ASSETS)
-    msg += "\n\nTRADING CLASSIQUE:\n" + "\n".join(CLASSIC_ASSETS)
-
-    await update.message.reply_text(msg)
-
-
-# =========================
-# ANALYSE CORE (V4 ENGINE)
-# =========================
-def confluence(price, ema_val, rsi_val):
+def confluence_score(price, ema_fast, ema_slow, rsi_val, vol):
 
     score = 50
 
-    if price > ema_val:
-        score += 20
+    # Trend EMA
+    if ema_fast > ema_slow:
+        score += 25
     else:
-        score -= 20
+        score -= 25
 
+    # RSI
     if rsi_val < 30:
         score += 20
     elif rsi_val > 70:
         score -= 20
 
+    # Volatility filter
+    if vol > 0:
+        score += 5
+
     return max(0, min(100, score))
 
 
 # =========================
-# ANALYSE
+# ANALYSE CORE
 # =========================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -131,36 +147,45 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     price = safe(data, "current", 100)
 
-    history = [price * (1 + i * 0.001) for i in range(-10, 10)]
+    history = [price * (1 + i * 0.001) for i in range(-15, 15)]
 
-    ema_val = sum(history) / len(history)
-    rsi_val = 50
+    ema_fast = ema(history[-10:])
+    ema_slow = ema(history)
 
-    score = confluence(price, ema_val, rsi_val)
+    rsi_val = rsi(history)
 
-    trend = "HAUSSIER" if price > ema_val else "BAISSIER"
+    vol = atr(history, history)
+
+    score = confluence_score(price, ema_fast, ema_slow, rsi_val, vol)
 
     signal = "ATTENTE"
+
     if score >= 70:
         signal = "CALL"
     elif score <= 30:
         signal = "PUT"
 
     await update.message.reply_text(f"""
-ANALYSE PREDICTHOOD V5
+PREDICTHOOD V6 ANALYSE
 
 Actif : {symbol}
-Trend : {trend}
-Score : {score}
 
-Signal : {signal}
+Price : {price}
+EMA Fast : {round(ema_fast,2)}
+EMA Slow : {round(ema_slow,2)}
+RSI : {round(rsi_val,2)}
+Volatility : {round(vol,2)}
+
+Score : {score}/100
+
+SIGNAL : {signal}
 """)
 
 
 # =========================
-# OPTION BINAIRE
+# BINARY
 # =========================
-async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def binary(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "EURUSD"
     data = get_quote(symbol)
@@ -170,34 +195,38 @@ async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     price = safe(data, "current", 100)
-    history = [price * (1 + i * 0.0008) for i in range(-10, 10)]
 
-    ema_val = sum(history) / len(history)
-    rsi_val = 50
+    history = [price * (1 + i * 0.0008) for i in range(-15, 15)]
 
-    score = confluence(price, ema_val, rsi_val)
+    ema_fast = ema(history[-10:])
+    ema_slow = ema(history)
+
+    rsi_val = rsi(history)
+
+    score = confluence_score(price, ema_fast, ema_slow, rsi_val, 1)
 
     signal = "ATTENTE"
 
     if score >= 75:
-        signal = "CALL (EXP 1-3 MIN)"
+        signal = "CALL (1-3 MIN)"
     elif score <= 25:
-        signal = "PUT (EXP 1-3 MIN)"
+        signal = "PUT (1-3 MIN)"
 
     await update.message.reply_text(f"""
-OPTION BINAIRE V5
+OPTION BINAIRE V6
 
 Actif : {symbol}
+RSI : {round(rsi_val,2)}
 Score : {score}
 
-Signal : {signal}
+SIGNAL : {signal}
 """)
 
 
 # =========================
-# CLASSIC TRADING
+# CLASSIC
 # =========================
-async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def classic(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "XAUUSD"
     data = get_quote(symbol)
@@ -207,12 +236,15 @@ async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     price = safe(data, "current", 100)
-    history = [price * (1 + i * 0.0012) for i in range(-10, 10)]
 
-    ema_val = sum(history) / len(history)
-    rsi_val = 50
+    history = [price * (1 + i * 0.0012) for i in range(-15, 15)]
 
-    score = confluence(price, ema_val, rsi_val)
+    ema_fast = ema(history[-10:])
+    ema_slow = ema(history)
+
+    rsi_val = rsi(history)
+
+    score = confluence_score(price, ema_fast, ema_slow, rsi_val, 1)
 
     signal = "ATTENTE"
 
@@ -222,19 +254,20 @@ async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         signal = "SELL"
 
     await update.message.reply_text(f"""
-TRADING CLASSIQUE V5
+TRADING CLASSIQUE V6
 
 Actif : {symbol}
+RSI : {round(rsi_val,2)}
 Score : {score}
 
-Signal : {signal}
+SIGNAL : {signal}
 """)
 
 
 # =========================
-# ROUTER MENU
+# ROUTER
 # =========================
-async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
@@ -242,16 +275,13 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await analyse(update, context)
 
     elif text == "⚡ Option Binaire":
-        await binary_analysis(update, context)
+        await binary(update, context)
 
     elif text == "📈 Trading Classique":
-        await classic_analysis(update, context)
+        await classic(update, context)
 
-    elif text == "📡 Scanner Actifs":
-        await scanner(update, context)
-
-    else:
-        await update.message.reply_text("Option non reconnue.")
+    elif text == "📡 Scanner":
+        await update.message.reply_text("BINARY:\n" + "\n".join(BINARY) + "\n\nCLASSIC:\n" + "\n".join(CLASSIC))
 
 
 # =========================
@@ -262,11 +292,9 @@ def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("price", price))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, router))
 
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
-
-    print("PredictHood V5 RUNNING...")
+    print("PredictHood V6 RUNNING...")
 
     app.run_polling(drop_pending_updates=True)
 
