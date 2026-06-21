@@ -115,7 +115,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("price", price))
     app.add_handler(CommandHandler("scanner", scanner))
-
+    app.add_handler(CommandHandler("analyse", analyse))
     print("PredictHood running...")
     app.run_polling()
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
