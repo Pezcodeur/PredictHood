@@ -62,6 +62,7 @@ Clôture précédente : {data['previous_close']}
 
     await update.message.reply_text(message)
 
+
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
@@ -69,11 +70,6 @@ def main():
     app.add_handler(CommandHandler("price", price))
 
     print("PredictHood running...")
-    app.run_polling()
-
-
-if __name__ == "__main__":
-    main()    print("PredictHood running...")
     app.run_polling()
 
 
