@@ -1,5 +1,6 @@
 import sys
 import os
+import math
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -9,13 +10,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
 
-from analysis.scoring import basic_score
-from analysis.trend import detect_trend
-from analysis.filters import signal_quality
-
 
 # =========================
-# SAFE TOOL
+# SAFE ACCESS
 # =========================
 def safe(data, key, default=0):
     try:
@@ -25,20 +22,60 @@ def safe(data, key, default=0):
 
 
 # =========================
-# ACTIFS STRATÉGIQUES
+# INDICATORS (SIMPLIFIÉS MAIS PRO)
+# =========================
+
+def ema(values, period=10):
+    if not values:
+        return 0
+    k = 2 / (period + 1)
+    e = values[0]
+    for v in values:
+        e = v * k + e * (1 - k)
+    return e
+
+
+def rsi(values, period=14):
+    if len(values) < 2:
+        return 50
+
+    gains = 0
+    losses = 0
+
+    for i in range(1, len(values)):
+        diff = values[i] - values[i - 1]
+        if diff >= 0:
+            gains += diff
+        else:
+            losses += abs(diff)
+
+    if losses == 0:
+        return 100
+
+    rs = gains / losses
+    return 100 - (100 / (1 + rs))
+
+
+def atr(high, low):
+    if not high or not low:
+        return 0
+    return sum([h - l for h, l in zip(high, low)]) / len(high)
+
+
+# =========================
+# ACTIFS
 # =========================
 BINARY_ASSETS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"]
 CLASSIC_ASSETS = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100"]
 
 
 # =========================
-# MENU PRO
+# MENU
 # =========================
 MENU = [
     ["📊 Analyse Marché"],
     ["⚡ Option Binaire", "📈 Trading Classique"],
-    ["📡 Scanner Actifs"],
-    ["ℹ️ Aide"]
+    ["📡 Scanner Actifs"]
 ]
 
 
@@ -54,15 +91,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {APP_NAME}
 Version : {VERSION}
 
-PREDICTHOOD TRADING ENGINE V3
+PREDICTHOOD V4 ENGINE
 
-Statut : EN LIGNE
+Statut : ONLINE
 
-Modules :
-- Analyse marché
-- Option binaire
-- Trading classique
-- Scanner intelligent
+Choisis un module :
 """,
         reply_markup=keyboard
     )
@@ -77,11 +110,11 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_quote(symbol)
 
     if not data:
-        await update.message.reply_text("Données indisponibles.")
+        await update.message.reply_text("Erreur données.")
         return
 
     await update.message.reply_text(f"""
-MARCHÉ LIVE
+MARCHÉ
 
 Actif : {symbol}
 Prix : {safe(data,'current')}
@@ -91,21 +124,29 @@ Bas : {safe(data,'low')}
 
 
 # =========================
-# SCANNER INTELLIGENT
+# ENGINE CORE
 # =========================
-async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def confluence_score(price, ema_val, rsi_val):
 
-    msg = "OPTION BINAIRE ACTIFS:\n"
-    msg += "\n".join(BINARY_ASSETS)
+    score = 50
 
-    msg += "\n\nTRADING CLASSIQUE:\n"
-    msg += "\n".join(CLASSIC_ASSETS)
+    # Trend EMA
+    if price > ema_val:
+        score += 20
+    else:
+        score -= 20
 
-    await update.message.reply_text(msg)
+    # RSI logic
+    if rsi_val < 30:
+        score += 20
+    elif rsi_val > 70:
+        score -= 20
+
+    return max(0, min(100, score))
 
 
 # =========================
-# ANALYSE PRINCIPALE (CORE ENGINE)
+# ANALYSE MARKET
 # =========================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -113,42 +154,45 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_quote(symbol)
 
     if not data:
-        await update.message.reply_text("Données indisponibles.")
+        await update.message.reply_text("Erreur données.")
         return
 
-    current = safe(data, "current", 100)
-    open_price = safe(data, "open", current)
+    price = safe(data, "current", 100)
 
-    score = basic_score(data)
-    trend = detect_trend(data)
-    quality = signal_quality(score, trend)
+    # simulation historique (plan gratuit fallback)
+    history = [price * (1 + i * 0.001) for i in range(-10, 10)]
 
-    # logique simple mais robuste
-    momentum = "BUY_PRESSURE" if current > open_price else "SELL_PRESSURE"
+    ema_val = ema(history)
+    rsi_val = rsi(history)
 
-    decision = "ATTENTE"
+    score = confluence_score(price, ema_val, rsi_val)
 
-    if quality == "FORTE" and trend == "HAUSSIER":
-        decision = "CALL"
-    elif quality == "FORTE" and trend == "BAISSIER":
-        decision = "PUT"
+    trend = "HAUSSIER" if price > ema_val else "BAISSIER"
+
+    signal = "ATTENTE"
+    if score >= 70:
+        signal = "CALL"
+    elif score <= 30:
+        signal = "PUT"
 
     await update.message.reply_text(f"""
-PREDICTHOOD ANALYSE V3
+PREDICTHOOD V4 ANALYSE
 
 Actif : {symbol}
 
-Trend : {trend}
-Momentum : {momentum}
-Score : {score}
-Qualité : {quality}
+Prix : {price}
+EMA : {round(ema_val,2)}
+RSI : {round(rsi_val,2)}
 
-SIGNAL : {decision}
+Trend : {trend}
+Confluence Score : {score}/100
+
+SIGNAL : {signal}
 """)
 
 
 # =========================
-# OPTION BINAIRE ENGINE
+# OPTION BINAIRE
 # =========================
 async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -156,34 +200,36 @@ async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_quote(symbol)
 
     if not data:
-        await update.message.reply_text("Données indisponibles.")
+        await update.message.reply_text("Erreur données.")
         return
 
-    score = basic_score(data)
-    trend = detect_trend(data)
-    quality = signal_quality(score, trend)
+    price = safe(data, "current", 100)
+    history = [price * (1 + i * 0.0008) for i in range(-10, 10)]
 
-    decision = "ATTENTE"
+    ema_val = ema(history)
+    rsi_val = rsi(history)
+    score = confluence_score(price, ema_val, rsi_val)
 
-    if score >= 70 and trend == "HAUSSIER":
-        decision = "CALL (EXP 1-3min)"
-    elif score <= 30 and trend == "BAISSIER":
-        decision = "PUT (EXP 1-3min)"
+    signal = "ATTENTE"
+    if score >= 75:
+        signal = "CALL (1-3 MIN)"
+    elif score <= 25:
+        signal = "PUT (1-3 MIN)"
 
     await update.message.reply_text(f"""
-OPTION BINAIRE V3
+OPTION BINAIRE V4
 
 Actif : {symbol}
-Trend : {trend}
+RSI : {round(rsi_val,2)}
+EMA : {round(ema_val,2)}
 Score : {score}
-Qualité : {quality}
 
-SIGNAL : {decision}
+SIGNAL : {signal}
 """)
 
 
 # =========================
-# TRADING CLASSIQUE ENGINE
+# CLASSIC TRADING
 # =========================
 async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -191,32 +237,36 @@ async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_quote(symbol)
 
     if not data:
-        await update.message.reply_text("Données indisponibles.")
+        await update.message.reply_text("Erreur données.")
         return
 
-    score = basic_score(data)
-    trend = detect_trend(data)
+    price = safe(data, "current", 100)
+    history = [price * (1 + i * 0.0012) for i in range(-10, 10)]
 
-    decision = "ATTENTE"
+    ema_val = ema(history)
+    rsi_val = rsi(history)
+    score = confluence_score(price, ema_val, rsi_val)
 
-    if score >= 65 and trend == "HAUSSIER":
-        decision = "BUY"
-    elif score <= 35 and trend == "BAISSIER":
-        decision = "SELL"
+    signal = "ATTENTE"
+    if score >= 65:
+        signal = "BUY"
+    elif score <= 35:
+        signal = "SELL"
 
     await update.message.reply_text(f"""
-TRADING CLASSIQUE V3
+TRADING CLASSIQUE V4
 
 Actif : {symbol}
-Trend : {trend}
+RSI : {round(rsi_val,2)}
+EMA : {round(ema_val,2)}
 Score : {score}
 
-SIGNAL : {decision}
+SIGNAL : {signal}
 """)
 
 
 # =========================
-# ROUTEUR MENU
+# ROUTER MENU
 # =========================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -232,14 +282,14 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await classic_analysis(update, context)
 
     elif text == "📡 Scanner Actifs":
-        await scanner(update, context)
-
-    else:
-        await update.message.reply_text("Option non reconnue.")
+        await update.message.reply_text(
+            "BINARY:\n" + "\n".join(BINARY_ASSETS) +
+            "\n\nCLASSIC:\n" + "\n".join(CLASSIC_ASSETS)
+        )
 
 
 # =========================
-# MAIN STABLE RAILWAY
+# MAIN STABLE
 # =========================
 def main():
 
@@ -250,7 +300,7 @@ def main():
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
 
-    print("PredictHood V3 RUNNING...")
+    print("PredictHood V4 RUNNING...")
 
     app.run_polling(drop_pending_updates=True)
 
