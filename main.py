@@ -28,7 +28,7 @@ MENU = [
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True)
+    keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True, one_time_keyboard=False)
 
     message = f"""
 
