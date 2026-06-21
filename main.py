@@ -54,7 +54,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {APP_NAME}
 Version : {VERSION}
 
-PredictHood Trading Engine
+PredictHood Engine
 
 Statut : EN LIGNE
 
@@ -76,17 +76,13 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Données indisponibles.")
         return
 
-    current = safe_get(data, "current")
-    high = safe_get(data, "high")
-    low = safe_get(data, "low")
-
     await update.message.reply_text(f"""
 MARCHÉ
 
 ACTIF : {symbol}
-Prix : {current}
-Haut : {high}
-Bas : {low}
+Prix : {safe_get(data,'current')}
+Haut : {safe_get(data,'high')}
+Bas : {safe_get(data,'low')}
 """)
 
 
@@ -95,17 +91,14 @@ Bas : {low}
 # =======================
 async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    msg = "OPTION BINAIRE:\n"
-    msg += "\n".join(BINARY_ASSETS)
-
-    msg += "\n\nTRADING CLASSIQUE:\n"
-    msg += "\n".join(CLASSIC_ASSETS)
+    msg = "OPTION BINAIRE:\n" + "\n".join(BINARY_ASSETS)
+    msg += "\n\nTRADING CLASSIQUE:\n" + "\n".join(CLASSIC_ASSETS)
 
     await update.message.reply_text(msg)
 
 
 # =======================
-# ANALYSE
+# ANALYSE PRINCIPALE
 # =======================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -123,19 +116,19 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trend = detect_trend(data)
     quality = signal_quality(score, trend)
 
-    # RSI simulé SAFE
+    # RSI simplifié SAFE
     rsi = 50
     if current > open_p:
         rsi = 60
     else:
         rsi = 40
 
+    decision = "ATTENTE"
+
     if quality == "FORTE" and trend == "HAUSSIER":
         decision = "CALL"
     elif quality == "FORTE" and trend == "BAISSIER":
         decision = "PUT"
-    else:
-        decision = "ATTENTE"
 
     await update.message.reply_text(f"""
 ANALYSE PREDICTHOOD
@@ -165,12 +158,12 @@ async def binary_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     score = basic_score(data)
     trend = detect_trend(data)
 
+    decision = "ATTENTE"
+
     if score >= 65 and trend == "HAUSSIER":
         decision = "CALL"
     elif score <= 35 and trend == "BAISSIER":
         decision = "PUT"
-    else:
-        decision = "ATTENTE"
 
     await update.message.reply_text(f"""
 OPTION BINAIRE
@@ -198,12 +191,12 @@ async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     score = basic_score(data)
     trend = detect_trend(data)
 
+    decision = "ATTENTE"
+
     if score >= 60 and trend == "HAUSSIER":
         decision = "BUY"
     elif score <= 40 and trend == "BAISSIER":
         decision = "SELL"
-    else:
-        decision = "ATTENTE"
 
     await update.message.reply_text(f"""
 TRADING CLASSIQUE
@@ -217,7 +210,7 @@ Signal : {decision}
 
 
 # =======================
-# ROUTEUR MENU
+# MENU ROUTER
 # =======================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -240,7 +233,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =======================
-# MAIN
+# MAIN (ANTI CONFLICT FIX)
 # =======================
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -251,7 +244,9 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
 
     print("PredictHood running...")
-    app.run_polling()
+
+    # IMPORTANT FIX RAILWAY
+    app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
