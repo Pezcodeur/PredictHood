@@ -3,6 +3,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from analysis.scoring import basic_score
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
+from analysis.trend import detect_trend
 
 
 # =======================
@@ -129,11 +130,12 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     score = basic_score(data)
+    trend = detect_trend(data)
 
-    # logique simple de décision
-    if score >= 65:
+    # logique améliorée
+    if trend == "HAUSSIER" and score >= 60:
         decision = "CALL"
-    elif score <= 35:
+    elif trend == "BAISSIER" and score <= 40:
         decision = "PUT"
     else:
         decision = "ATTENTE"
@@ -143,13 +145,14 @@ ANALYSE PREDICTHOOD
 
 ACTIF : {symbol}
 
+Tendance : {trend}
 Score : {score}/100
 
 Décision : {decision}
 
 Résumé :
-- Analyse automatique du marché
-- Basée sur volatilité et position du prix
+- Analyse tendance + volatilité
+- Filtrage intelligent des signaux
 """
 
     await update.message.reply_text(message)
