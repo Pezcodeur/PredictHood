@@ -4,7 +4,13 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
 
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
@@ -15,7 +21,7 @@ from analysis.filters import signal_quality
 
 
 # =======================
-# SAFE GET
+# SAFE FUNCTION
 # =======================
 def safe_get(data, key, default=0):
     try:
@@ -98,7 +104,7 @@ async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =======================
-# ANALYSE PRINCIPALE
+# ANALYSE
 # =======================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -116,15 +122,9 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trend = detect_trend(data)
     quality = signal_quality(score, trend)
 
-    # RSI simplifié SAFE
-    rsi = 50
-    if current > open_p:
-        rsi = 60
-    else:
-        rsi = 40
+    rsi = 50 if current > open_p else 40
 
     decision = "ATTENTE"
-
     if quality == "FORTE" and trend == "HAUSSIER":
         decision = "CALL"
     elif quality == "FORTE" and trend == "BAISSIER":
@@ -177,7 +177,7 @@ Signal : {decision}
 
 
 # =======================
-# TRADING CLASSIQUE
+# CLASSIQUE
 # =======================
 async def classic_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -210,7 +210,7 @@ Signal : {decision}
 
 
 # =======================
-# MENU ROUTER
+# ROUTER
 # =======================
 async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -233,7 +233,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =======================
-# MAIN (ANTI CONFLICT FIX)
+# MAIN FIXED
 # =======================
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -245,7 +245,6 @@ def main():
 
     print("PredictHood running...")
 
-    # IMPORTANT FIX RAILWAY
     app.run_polling(drop_pending_updates=True)
 
 
