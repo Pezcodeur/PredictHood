@@ -4,6 +4,7 @@ from analysis.scoring import basic_score
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
 from analysis.trend import detect_trend
+from analysis.filters import signal_quality
 
 
 # =======================
