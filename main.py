@@ -4,6 +4,10 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from config.settings import TELEGRAM_TOKEN, APP_NAME, VERSION
 from services.finnhub_api import get_quote
 
+
+# =======================
+# ACTIFS
+# =======================
 BINARY_ASSETS = [
     "EURUSD",
     "GBPUSD",
@@ -19,6 +23,10 @@ CLASSIC_ASSETS = [
     "USDJPY",
     "NASDAQ"
 ]
+
+# =======================
+# MENU
+# =======================
 MENU = [
     ["📊 Analyse Marché"],
     ["⚡ Option Binaire", "📈 Trading Classique"],
@@ -27,11 +35,14 @@ MENU = [
 ]
 
 
+# =======================
+# START
+# =======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True, one_time_keyboard=False)
 
     message = f"""
-
 {APP_NAME}
 Version : {VERSION}
 
@@ -40,28 +51,74 @@ Système : PredictHood Trading Engine
 Statut : EN LIGNE
 
 Choisis un module :
+- Analyse marché
+- Option Binaire
+- Trading Classique
+- Scanner actifs
+"""
 
-- Analyse marché en temps réel
-- Option Binaire (court terme)
-- Trading Classique (Forex / Or)
-- Scanner des actifs
-- Paramètres & aide
+    await update.message.reply_text(message, reply_markup=keyboard)
+
+
+# =======================
+# PRICE (TEST MARCHÉ)
+# =======================
+async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    symbol = "AAPL"
+
+    data = get_quote(symbol)
+
+    if not data:
+        await update.message.reply_text("Erreur : données indisponibles.")
+        return
+
+    message = f"""
+ANALYSE MARCHÉ
+
+ACTIF : {symbol}
+
+Prix : {data['current']}
+Haut : {data['high']}
+Bas : {data['low']}
+Open : {data['open']}
+Close : {data['previous_close']}
 """
 
     await update.message.reply_text(message)
 
 
+# =======================
+# SCANNER
+# =======================
+async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    message = "SCANNER PREDICTHOOD\n\nOPTION BINAIRE\n"
+
+    for asset in BINARY_ASSETS:
+        message += f"- {asset}\n"
+
+    message += "\nTRADING CLASSIQUE\n"
+
+    for asset in CLASSIC_ASSETS:
+        message += f"- {asset}\n"
+
+    await update.message.reply_text(message)
+
+
+# =======================
+# MAIN
+# =======================
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("price", price))
-
     app.add_handler(CommandHandler("scanner", scanner))
 
     print("PredictHood running...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
