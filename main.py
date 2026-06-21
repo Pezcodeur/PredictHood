@@ -118,7 +118,41 @@ def main():
 
     print("PredictHood running...")
     app.run_polling()
+async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    symbol = "AAPL"
+
+    data = get_quote(symbol)
+
+    if not data:
+        await update.message.reply_text("Données indisponibles.")
+        return
+
+    score = basic_score(data)
+
+    # logique simple de décision
+    if score >= 65:
+        decision = "CALL"
+    elif score <= 35:
+        decision = "PUT"
+    else:
+        decision = "ATTENTE"
+
+    message = f"""
+ANALYSE PREDICTHOOD
+
+ACTIF : {symbol}
+
+Score : {score}/100
+
+Décision : {decision}
+
+Résumé :
+- Analyse automatique du marché
+- Basée sur volatilité et position du prix
+"""
+
+    await update.message.reply_text(message)
 
 if __name__ == "__main__":
     main()
