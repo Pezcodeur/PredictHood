@@ -20,11 +20,10 @@ CLASSIC_ASSETS = [
     "NASDAQ"
 ]
 MENU = [
-    ["Option Binaire"],
-    ["Trading Classique"],
-    ["Scanner"],
-    ["Paramètres"],
-    ["Aide"]
+    ["📊 Analyse Marché"],
+    ["⚡ Option Binaire", "📈 Trading Classique"],
+    ["📡 Scanner Actifs"],
+    ["⚙️ Paramètres", "ℹ️ Aide"]
 ]
 
 
@@ -32,46 +31,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True)
 
     message = f"""
-====================================
+
 {APP_NAME}
 Version : {VERSION}
 
-Statut : En ligne
+Système : PredictHood Trading Engine
 
-Bienvenue dans PredictHood.
+Statut : EN LIGNE
 
-Choisissez une option :
-====================================
-"""
+Choisis un module :
 
-    await update.message.reply_text(message, reply_markup=keyboard)
-
-
-async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    symbol = "AAPL"
-
-    data = get_quote(symbol)
-
-    if data is None:
-        await update.message.reply_text(
-            "Erreur : impossible de récupérer les données du marché."
-        )
-        return
-
-    message = f"""
-====================================
-ANALYSE MARCHÉ - PREDICTHOOD
-
-ACTIF : {symbol}
-
-Prix actuel : {data['current']}
-Haut : {data['high']}
-Bas : {data['low']}
-Ouverture : {data['open']}
-Clôture précédente : {data['previous_close']}
-
-====================================
+- Analyse marché en temps réel
+- Option Binaire (court terme)
+- Trading Classique (Forex / Or)
+- Scanner des actifs
+- Paramètres & aide
 """
 
     await update.message.reply_text(message)
