@@ -5,32 +5,29 @@ BASE_URL = "https://finnhub.io/api/v1"
 
 
 def get_quote(symbol: str):
-    """
-    Récupère les informations de marché d'un actif.
+    try:
+        url = f"{BASE_URL}/quote"
 
-    Exemple :
-    get_quote("AAPL")
-    get_quote("BINANCE:BTCUSDT")
-    """
+        params = {
+            "symbol": symbol,
+            "token": FINNHUB_API_KEY
+        }
 
-    url = f"{BASE_URL}/quote"
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
 
-    params = {
-        "symbol": symbol,
-        "token": FINNHUB_API_KEY
-    }
+        # Vérification sécurité
+        if not data or "c" not in data:
+            return None
 
-    response = requests.get(url, params=params)
+        return {
+            "current": data.get("c"),
+            "high": data.get("h"),
+            "low": data.get("l"),
+            "open": data.get("o"),
+            "previous_close": data.get("pc")
+        }
 
-    if response.status_code != 200:
+    except Exception as e:
+        print("Finnhub error:", e)
         return None
-
-    data = response.json()
-
-    return {
-        "current": data.get("c"),
-        "high": data.get("h"),
-        "low": data.get("l"),
-        "open": data.get("o"),
-        "previous_close": data.get("pc")
-  }# Connexion API Finnhub
