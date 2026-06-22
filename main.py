@@ -18,14 +18,29 @@ CLASSIC = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100"]
 
 
 # =========================
-# MENU
+# MENU PRO (SANS EMOJI)
 # =========================
 MENU = [
-    ["📊 Analyse Marché"],
-    ["⚡ Option Binaire", "📈 Trading Classique"],
-    ["📡 Scanner"],
-    ["ℹ️ Help"]
+    ["ANALYSE"],
+    ["BINARY", "CLASSIC"],
+    ["SCANNER"],
+    ["HELP"]
 ]
+
+
+# =========================
+# FORMAT TERMINAL
+# =========================
+def box(title: str, content: str):
+
+    line = "─" * 40
+    return f"""
+{line}
+{title}
+{line}
+{content}
+{line}
+"""
 
 
 # =========================
@@ -35,18 +50,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = ReplyKeyboardMarkup(MENU, resize_keyboard=True)
 
-    await update.message.reply_text(
-        f"""
+    content = f"""
 {APP_NAME}
-Version : {VERSION}
+VERSION: {VERSION}
 
-🚀 PREDICTHOOD ENGINE V7
+PREDICTHOOD TRADING ENGINE
 
-Statut : ONLINE
-Mode : MANUAL TRADING
-""",
-        reply_markup=keyboard
-    )
+STATUS: ONLINE
+MODE: MANUAL
+"""
+
+    await update.message.reply_text(box("SYSTEM", content), reply_markup=keyboard)
 
 
 # =========================
@@ -54,185 +68,173 @@ Mode : MANUAL TRADING
 # =========================
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    await update.message.reply_text("""
-📘 PREDICTHOOD HELP
+    content = """
+ANALYSE   -> Market analysis
+BINARY    -> Short term signals
+CLASSIC   -> Swing trading signals
+SCANNER   -> Best opportunities
 
-📊 Analyse Marché → analyse un actif
-⚡ Option Binaire → signal court terme (1-3 min)
-📈 Trading Classique → signal long terme (XAUUSD focus)
-📡 Scanner → meilleures opportunités
+NOTE: Manual trading only
+"""
 
-⚠️ Tu trades MANUELLEMENT
-Le bot ne passe aucun ordre
-""")
+    await update.message.reply_text(box("HELP", content))
 
 
 # =========================
-# ANALYSE MARCHÉ
+# ANALYSE
 # =========================
 async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "AAPL"
-    result = analyze_symbol(symbol)
+    r = analyze_symbol(symbol)
 
-    if not result:
-        await update.message.reply_text("Erreur données.")
+    if not r:
+        await update.message.reply_text("ERROR: NO DATA")
         return
 
-    await update.message.reply_text(f"""
-📊 ANALYSE ENGINE
+    content = f"""
+SYMBOL: {r['symbol']}
+PRICE: {r['price']}
 
-Actif : {result['symbol']}
-Prix : {result['price']}
+EMA FAST: {r['ema_fast']}
+EMA SLOW: {r['ema_slow']}
+RSI: {r['rsi']}
+VOL: {r['volatility']}
 
-EMA Fast : {result['ema_fast']}
-EMA Slow : {result['ema_slow']}
-RSI : {result['rsi']}
-Volatilité : {result['volatility']}
+SCORE: {r['score']}/100
+SIGNAL: {r['signal']}
+"""
 
-Score : {result['score']}/100
-Signal : {result['signal']}
-""")
+    await update.message.reply_text(box("MARKET ANALYSIS", content))
 
 
 # =========================
-# OPTION BINAIRE
+# BINARY
 # =========================
 async def binary(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "EURUSD"
-    result = analyze_symbol(symbol)
+    r = analyze_symbol(symbol)
 
-    if not result:
-        await update.message.reply_text("Erreur données.")
+    if not r:
+        await update.message.reply_text("ERROR: NO DATA")
         return
 
-    signal = "ATTENTE"
+    signal = "WAIT"
 
-    if result["score"] >= 75:
-        signal = "CALL (1-3 MIN)"
-    elif result["score"] <= 25:
-        signal = "PUT (1-3 MIN)"
+    if r["score"] >= 75:
+        signal = "CALL"
+    elif r["score"] <= 25:
+        signal = "PUT"
 
-    await update.message.reply_text(f"""
-⚡ OPTION BINAIRE
+    content = f"""
+SYMBOL: {symbol}
+RSI: {r['rsi']}
+SCORE: {r['score']}
 
-Actif : {symbol}
-RSI : {result['rsi']}
-Score : {result['score']}
+SIGNAL: {signal}
+"""
 
-Signal : {signal}
-""")
+    await update.message.reply_text(box("BINARY SIGNAL", content))
 
 
 # =========================
-# TRADING CLASSIQUE
+# CLASSIC
 # =========================
 async def classic(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     symbol = "XAUUSD"
-    result = analyze_symbol(symbol)
+    r = analyze_symbol(symbol)
 
-    if not result:
-        await update.message.reply_text("Erreur données.")
+    if not r:
+        await update.message.reply_text("ERROR: NO DATA")
         return
 
-    signal = "ATTENTE"
+    signal = "WAIT"
 
-    if result["score"] >= 65:
+    if r["score"] >= 65:
         signal = "BUY"
-    elif result["score"] <= 35:
+    elif r["score"] <= 35:
         signal = "SELL"
 
-    await update.message.reply_text(f"""
-📈 TRADING CLASSIQUE
+    content = f"""
+SYMBOL: {symbol}
+RSI: {r['rsi']}
+SCORE: {r['score']}
 
-Actif : {symbol}
-RSI : {result['rsi']}
-Score : {result['score']}
+SIGNAL: {signal}
+"""
 
-Signal : {signal}
-""")
+    await update.message.reply_text(box("CLASSIC SIGNAL", content))
 
 
 # =========================
-# SCANNER PRO V2
+# SCANNER
 # =========================
 async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     assets = BINARY + CLASSIC
     results = []
 
-    for symbol in assets:
-        result = analyze_symbol(symbol)
-
-        if not result:
+    for s in assets:
+        r = analyze_symbol(s)
+        if not r:
             continue
 
-        # filtre qualité
-        if result["score"] < 60:
+        if r["score"] < 60:
             continue
 
-        # bonus XAUUSD
-        if symbol == "XAUUSD":
-            result["score"] += 5
+        if s == "XAUUSD":
+            r["score"] += 5
 
-        results.append(result)
+        results.append(r)
 
     if not results:
-        await update.message.reply_text("⚠️ Aucun signal de qualité détecté.")
+        await update.message.reply_text("NO OPPORTUNITIES")
         return
 
     results.sort(key=lambda x: x["score"], reverse=True)
-
     best = results[0]
 
-    message = f"""
-📡 SCANNER PRO V2
+    content = f"""
+BEST SETUP
 
-🥇 MEILLEUR SETUP
+SYMBOL: {best['symbol']}
+PRICE: {best['price']}
+SCORE: {best['score']}
+SIGNAL: {best['signal']}
 
-Actif : {best['symbol']}
-Prix : {best['price']}
-Score : {best['score']}
-Signal : {best['signal']}
-
-────────────────────
-TOP OPPORTUNITÉS
+TOP 3
 """
 
     for r in results[:3]:
-        tag = "🔥 HIGH PROB" if r["score"] >= 75 else "MID"
-
-        message += f"""
-• {r['symbol']} ({tag})
-  Score : {r['score']}
-  Signal : {r['signal']}
+        content += f"""
+{r['symbol']} | {r['score']} | {r['signal']}
 """
 
-    await update.message.reply_text(message)
+    await update.message.reply_text(box("SCANNER PRO", content))
 
 
 # =========================
-# ROUTER MENU
+# ROUTER
 # =========================
 async def router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    text = update.message.text
+    text = update.message.text.upper()
 
-    if text == "📊 Analyse Marché":
+    if text == "ANALYSE":
         await analyse(update, context)
 
-    elif text == "⚡ Option Binaire":
+    elif text == "BINARY":
         await binary(update, context)
 
-    elif text == "📈 Trading Classique":
+    elif text == "CLASSIC":
         await classic(update, context)
 
-    elif text == "📡 Scanner":
+    elif text == "SCANNER":
         await scanner(update, context)
 
-    elif text == "ℹ️ Help":
+    elif text == "HELP":
         await help_cmd(update, context)
 
 
@@ -245,10 +247,9 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_cmd))
-
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, router))
 
-    print("PredictHood V7 + PRO SCANNER RUNNING...")
+    print("PREDICTHOOD TERMINAL MODE RUNNING...")
 
     app.run_polling(drop_pending_updates=True)
 
