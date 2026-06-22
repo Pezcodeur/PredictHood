@@ -136,21 +136,31 @@ Signal : {signal}
 
 
 # =========================
-# SCANNER INTELLIGENT V1
+# SCANNER PRO V2 (AMÉLIORÉ)
 # =========================
 async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     assets = BINARY + CLASSIC
-
     results = []
 
     for symbol in assets:
         result = analyze_symbol(symbol)
-        if result:
-            results.append(result)
+
+        if not result:
+            continue
+
+        # 🔥 FILTRE QUALITÉ V2
+        if result["score"] < 60:
+            continue
+
+        # BONUS XAUUSD (priorité marché)
+        if symbol == "XAUUSD":
+            result["score"] += 5
+
+        results.append(result)
 
     if not results:
-        await update.message.reply_text("Aucun signal détecté.")
+        await update.message.reply_text("⚠️ Aucun signal de qualité détecté.")
         return
 
     # tri par score
@@ -159,9 +169,9 @@ async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
     best = results[0]
 
     message = f"""
-📡 SCANNER INTELLIGENT V1
+📡 SCANNER PRO V2
 
-🥇 MEILLEUR SIGNAL
+🥇 MEILLEUR SETUP
 
 Actif : {best['symbol']}
 Prix : {best['price']}
@@ -169,12 +179,14 @@ Score : {best['score']}
 Signal : {best['signal']}
 
 ────────────────────
-TOP 3 OPPORTUNITÉS
+🔥 TOP OPPORTUNITÉS QUALIFIÉES
 """
 
     for r in results[:3]:
+        tag = "⭐ HIGH PROB" if r["score"] >= 75 else "MID"
+
         message += f"""
-• {r['symbol']}
+• {r['symbol']} ({tag})
   Score : {r['score']}
   Signal : {r['signal']}
 """
@@ -212,7 +224,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, router))
 
-    print("PredictHood V7 RUNNING...")
+    print("PredictHood V7 + SCANNER PRO V2 RUNNING...")
 
     app.run_polling(drop_pending_updates=True)
 
