@@ -23,7 +23,8 @@ CLASSIC = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "NAS100"]
 MENU = [
     ["📊 Analyse Marché"],
     ["⚡ Option Binaire", "📈 Trading Classique"],
-    ["📡 Scanner"]
+    ["📡 Scanner"],
+    ["ℹ️ Help"]
 ]
 
 
@@ -42,9 +43,28 @@ Version : {VERSION}
 🚀 PREDICTHOOD ENGINE V7
 
 Statut : ONLINE
+Mode : MANUAL TRADING
 """,
         reply_markup=keyboard
     )
+
+
+# =========================
+# HELP
+# =========================
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text("""
+📘 PREDICTHOOD HELP
+
+📊 Analyse Marché → analyse un actif
+⚡ Option Binaire → signal court terme (1-3 min)
+📈 Trading Classique → signal long terme (XAUUSD focus)
+📡 Scanner → meilleures opportunités
+
+⚠️ Tu trades MANUELLEMENT
+Le bot ne passe aucun ordre
+""")
 
 
 # =========================
@@ -136,7 +156,7 @@ Signal : {signal}
 
 
 # =========================
-# SCANNER PRO V2 (AMÉLIORÉ)
+# SCANNER PRO V2
 # =========================
 async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -149,11 +169,11 @@ async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not result:
             continue
 
-        # 🔥 FILTRE QUALITÉ V2
+        # filtre qualité
         if result["score"] < 60:
             continue
 
-        # BONUS XAUUSD (priorité marché)
+        # bonus XAUUSD
         if symbol == "XAUUSD":
             result["score"] += 5
 
@@ -163,7 +183,6 @@ async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Aucun signal de qualité détecté.")
         return
 
-    # tri par score
     results.sort(key=lambda x: x["score"], reverse=True)
 
     best = results[0]
@@ -179,11 +198,11 @@ Score : {best['score']}
 Signal : {best['signal']}
 
 ────────────────────
-🔥 TOP OPPORTUNITÉS QUALIFIÉES
+TOP OPPORTUNITÉS
 """
 
     for r in results[:3]:
-        tag = "⭐ HIGH PROB" if r["score"] >= 75 else "MID"
+        tag = "🔥 HIGH PROB" if r["score"] >= 75 else "MID"
 
         message += f"""
 • {r['symbol']} ({tag})
@@ -213,6 +232,9 @@ async def router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "📡 Scanner":
         await scanner(update, context)
 
+    elif text == "ℹ️ Help":
+        await help_cmd(update, context)
+
 
 # =========================
 # MAIN
@@ -222,9 +244,11 @@ def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_cmd))
+
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, router))
 
-    print("PredictHood V7 + SCANNER PRO V2 RUNNING...")
+    print("PredictHood V7 + PRO SCANNER RUNNING...")
 
     app.run_polling(drop_pending_updates=True)
 
