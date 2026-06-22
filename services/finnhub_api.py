@@ -6,18 +6,26 @@ BASE_URL = "https://finnhub.io/api/v1"
 
 def get_quote(symbol: str):
     try:
-        url = f"{BASE_URL}/quote"
+        response = requests.get(
+            f"{BASE_URL}/quote",
+            params={
+                "symbol": symbol,
+                "token": FINNHUB_API_KEY
+            },
+            timeout=10
+        )
 
-        params = {
-            "symbol": symbol,
-            "token": FINNHUB_API_KEY
-        }
+        if response.status_code != 200:
+            print("Erreur HTTP :", response.status_code)
+            return None
 
-        response = requests.get(url, params=params, timeout=10)
         data = response.json()
 
-        # Vérification sécurité
-        if not data or "c" not in data:
+        if not data:
+            return None
+
+        if data.get("c") is None:
+            print("Réponse API :", data)
             return None
 
         return {
@@ -29,5 +37,5 @@ def get_quote(symbol: str):
         }
 
     except Exception as e:
-        print("Finnhub error:", e)
+        print("Finnhub error :", e)
         return None
