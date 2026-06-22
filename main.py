@@ -63,8 +63,8 @@ async def analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📊 ANALYSE ENGINE
 
 Actif : {result['symbol']}
-
 Prix : {result['price']}
+
 EMA Fast : {result['ema_fast']}
 EMA Slow : {result['ema_slow']}
 RSI : {result['rsi']}
@@ -136,6 +136,53 @@ Signal : {signal}
 
 
 # =========================
+# SCANNER INTELLIGENT V1
+# =========================
+async def scanner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    assets = BINARY + CLASSIC
+
+    results = []
+
+    for symbol in assets:
+        result = analyze_symbol(symbol)
+        if result:
+            results.append(result)
+
+    if not results:
+        await update.message.reply_text("Aucun signal détecté.")
+        return
+
+    # tri par score
+    results.sort(key=lambda x: x["score"], reverse=True)
+
+    best = results[0]
+
+    message = f"""
+📡 SCANNER INTELLIGENT V1
+
+🥇 MEILLEUR SIGNAL
+
+Actif : {best['symbol']}
+Prix : {best['price']}
+Score : {best['score']}
+Signal : {best['signal']}
+
+────────────────────
+TOP 3 OPPORTUNITÉS
+"""
+
+    for r in results[:3]:
+        message += f"""
+• {r['symbol']}
+  Score : {r['score']}
+  Signal : {r['signal']}
+"""
+
+    await update.message.reply_text(message)
+
+
+# =========================
 # ROUTER MENU
 # =========================
 async def router(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -152,10 +199,7 @@ async def router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await classic(update, context)
 
     elif text == "📡 Scanner":
-        await update.message.reply_text(
-            "BINARY:\n" + "\n".join(BINARY) +
-            "\n\nCLASSIC:\n" + "\n".join(CLASSIC)
-        )
+        await scanner(update, context)
 
 
 # =========================
